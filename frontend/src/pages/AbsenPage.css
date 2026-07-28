@@ -1,0 +1,376 @@
+/*
+ * AbsenPage — Full-screen kiosk
+ */
+
+.absen-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-primary);
+  overflow: hidden;
+}
+
+/* quiet ambient — barely visible */
+.absen-page__ambient {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.8s ease;
+}
+
+.absen-page__ambient--success {
+  background: radial-gradient(ellipse at center, rgba(34,197,94,0.05) 0%, transparent 65%);
+}
+
+/* Header */
+.absen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-8);
+  border-bottom: 1px solid var(--color-border);
+  position: relative;
+  z-index: 10;
+}
+
+.absen-header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.absen-header__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.absen-header__title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.absen-header__subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.absen-header__clock { text-align: right; }
+
+.absen-header__time {
+  font-size: var(--font-size-3xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--color-text-primary);
+}
+
+.absen-header__date {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* Main */
+.absen-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-4);
+  position: relative;
+  z-index: 10;
+}
+
+/* Mode Selector */
+.absen-mode-selector {
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 560px;
+}
+
+.absen-mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  text-align: left;
+}
+
+.absen-mode-btn:hover:not(:disabled) {
+  border-color: var(--color-border-hover);
+  background: var(--color-bg-card-hover);
+  color: var(--color-text-primary);
+}
+
+.absen-mode-btn--masuk.absen-mode-btn--active {
+  background: rgba(99,102,241,0.08);
+  border-color: rgba(99,102,241,0.35);
+  color: var(--color-text-accent);
+}
+
+.absen-mode-btn--pulang.absen-mode-btn--active {
+  background: rgba(245,158,11,0.07);
+  border-color: rgba(245,158,11,0.35);
+  color: var(--color-warning);
+}
+
+.absen-mode-btn__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-tertiary);
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+
+.absen-mode-btn--active .absen-mode-btn__icon {
+  background: rgba(255,255,255,0.06);
+}
+
+.absen-mode-btn__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.absen-mode-btn__title {
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  letter-spacing: 0.01em;
+}
+
+.absen-mode-btn__sub {
+  font-size: var(--font-size-xs);
+  opacity: 0.6;
+}
+
+.absen-mode-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Camera container */
+.absen-camera-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.absen-camera-frame {
+  position: relative;
+  width: 400px;
+  height: 300px;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  transition: border-color var(--transition-base);
+}
+
+.absen-status--detecting .absen-camera-frame {
+  border-color: rgba(99,102,241,0.4);
+}
+
+.absen-status--success .absen-camera-frame {
+  border-color: rgba(34,197,94,0.4);
+}
+
+.absen-status--failed .absen-camera-frame,
+.absen-status--error .absen-camera-frame {
+  border-color: rgba(239,68,68,0.35);
+}
+
+.absen-status--processing .absen-camera-frame {
+  border-color: rgba(245,158,11,0.35);
+  animation: pulseGlow 1.8s ease-in-out infinite;
+}
+
+.absen-camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.absen-camera-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+.absen-camera-idle-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10,11,13,0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+  z-index: 6;
+  text-align: center;
+  padding: var(--space-6);
+}
+
+.absen-camera-idle-overlay p {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.absen-camera-idle-overlay strong {
+  color: var(--color-text-secondary);
+}
+
+/* Scan line */
+.absen-scan-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+  opacity: 0.6;
+  animation: scanLine 2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Corner guides */
+.absen-camera-guides {
+  position: absolute;
+  inset: 16px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.guide {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-color: rgba(255,255,255,0.2);
+  border-style: solid;
+  border-width: 0;
+  transition: border-color var(--transition-base);
+}
+
+.guide--tl { top:0; left:0;  border-top-width:2px;    border-left-width:2px;  border-radius:5px 0 0 0; }
+.guide--tr { top:0; right:0; border-top-width:2px;    border-right-width:2px; border-radius:0 5px 0 0; }
+.guide--bl { bottom:0; left:0;  border-bottom-width:2px; border-left-width:2px;  border-radius:0 0 0 5px; }
+.guide--br { bottom:0; right:0; border-bottom-width:2px; border-right-width:2px; border-radius:0 0 5px 0; }
+
+.absen-status--detecting .guide,
+.absen-status--processing .guide { border-color: rgba(99,102,241,0.5); }
+.absen-status--success    .guide { border-color: rgba(34,197,94,0.5); }
+
+/* Status pill */
+.absen-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-base);
+  font-size: var(--font-size-sm);
+}
+
+.absen-status--detecting  { border-color: rgba(99,102,241,0.25); background: rgba(99,102,241,0.06); }
+.absen-status--processing { border-color: rgba(245,158,11,0.25); background: rgba(245,158,11,0.06); }
+.absen-status--success    { border-color: rgba(34,197,94,0.25);  background: rgba(34,197,94,0.06); }
+.absen-status--failed,
+.absen-status--error      { border-color: rgba(239,68,68,0.25);  background: rgba(239,68,68,0.06); }
+
+.absen-status__text {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+/* Success result */
+.absen-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--color-bg-card);
+  border: 1px solid rgba(34,197,94,0.2);
+  border-radius: var(--radius-2xl);
+  text-align: center;
+  animation: successPulse 1.5s ease-out;
+  min-width: 280px;
+}
+
+.absen-result__avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-tertiary);
+  border: 1px solid rgba(34,197,94,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.absen-result__name {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.absen-result__role {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.absen-result__score {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+}
+
+/* Footer */
+.absen-footer {
+  text-align: center;
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  border-top: 1px solid var(--color-border);
+  z-index: 10;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .absen-camera-frame { width: 300px; height: 225px; }
+  .absen-header__time { font-size: var(--font-size-2xl); }
+  .absen-header { padding: var(--space-3) var(--space-4); }
+}
+
+@media (min-width: 768px) {
+  .absen-camera-frame { width: 480px; height: 360px; }
+}
