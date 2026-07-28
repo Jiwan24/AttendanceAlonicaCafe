@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Coffee, CheckCircle2, XCircle, AlertTriangle, LogIn, LogOut, Scan } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, LogIn, LogOut, Scan } from 'lucide-react';
 import { loadFaceModels, detectFaces, checkFaceStability, captureFrame, drawFaceOverlay } from '../lib/faceDetection';
 import { verifyFace } from '../lib/api';
 import PinFallback from '../components/PinFallback';
@@ -307,11 +307,7 @@ export default function AbsenPage() {
       <header className="absen-header">
         <div className="absen-header__brand">
           <div className="absen-header__logo">
-            <Coffee size={28} className="text-accent" />
-          </div>
-          <div>
-            <h1 className="absen-header__title">Alonica Cafe</h1>
-            <p className="absen-header__subtitle">Sistem Absensi Wajah</p>
+            <img src="/allo.png" alt="Alonica" className="absen-header__logo-img" />
           </div>
         </div>
         <div className="absen-header__clock">

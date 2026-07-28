@@ -1,5 +1,5 @@
 /*
- * Navbar
+ * Navbar — Liquid Glass (iOS style, Light Mode)
  */
 
 .navbar {
@@ -7,13 +7,19 @@
   top: 0;
   z-index: 100;
   border-radius: 0;
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  border-bottom: 1px solid var(--color-border);
   padding: var(--space-3) 0;
-  background: rgba(12,13,15,0.85);
-  backdrop-filter: var(--glass-blur);
+
+  /* Liquid glass core — light */
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(28px);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 0 rgba(0, 0, 0, 0.06),
+    0 4px 20px rgba(0, 0, 0, 0.06);
 }
 
 .navbar__container {
@@ -33,15 +39,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-md);
-  background: var(--color-bg-tertiary);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
+  height: 36px;
+  width: auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.navbar__logo-icon { color: inherit; }
+.navbar__logo-img {
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
 
 .navbar__title {
   font-size: var(--font-size-sm);
@@ -69,38 +79,47 @@
   gap: var(--space-2);
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+  border-radius: var(--radius-lg);
   border: 1px solid transparent;
+  transition: all var(--transition-fast);
+  text-decoration: none;
 }
 
 .navbar__link:hover {
   color: var(--color-text-primary);
-  background: var(--color-bg-tertiary);
+  background: rgba(0,0,0,0.05);
+  border-color: rgba(0,0,0,0.06);
 }
 
+/* Active pill */
 .navbar__link--active {
   color: var(--color-text-primary);
-  background: var(--color-bg-tertiary);
-  border-color: var(--color-border);
+  background: rgba(0,0,0,0.06);
+  border-color: rgba(0,0,0,0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.8),
+    0 1px 3px rgba(0,0,0,0.08);
 }
 
 .navbar__link--active:hover {
   color: var(--color-text-primary);
-  background: var(--color-bg-tertiary);
+  background: rgba(0,0,0,0.08);
 }
 
+/* Outline pill */
 .navbar__link--outline {
-  border-color: var(--color-border);
   color: var(--color-text-secondary);
+  border-color: rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
 }
 
 .navbar__link--outline:hover {
-  border-color: var(--color-border-hover);
   color: var(--color-text-primary);
-  background: var(--color-bg-tertiary);
+  background: rgba(255,255,255,0.85);
+  border-color: rgba(0,0,0,0.15);
 }
 
 @media (max-width: 640px) {

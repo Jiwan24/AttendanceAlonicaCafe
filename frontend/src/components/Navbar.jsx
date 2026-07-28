@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Coffee, LayoutDashboard, UserPlus, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, UserPlus, ArrowRight } from 'lucide-react';
 import './Navbar.css';
 
 /**
@@ -9,15 +9,11 @@ export default function Navbar() {
   const location = useLocation();
 
   return (
-    <nav className="navbar glass-card">
+    <nav className="navbar">
       <div className="container navbar__container">
         <Link to="/admin" className="navbar__brand">
           <div className="navbar__logo">
-            <Coffee size={24} className="navbar__logo-icon" />
-          </div>
-          <div>
-            <div className="navbar__title">Alonica Admin</div>
-            <div className="navbar__subtitle">Sistem Absensi Wajah</div>
+            <img src="/allo.png" alt="Alonica" className="navbar__logo-img" />
           </div>
         </Link>
 
