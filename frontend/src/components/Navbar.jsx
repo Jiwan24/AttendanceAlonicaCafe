@@ -1,5 +1,6 @@
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, UserPlus, ArrowRight } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, UserPlus, ArrowRight, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import './Navbar.css';
 
 /**
@@ -7,6 +8,13 @@ import './Navbar.css';
  */
 export default function Navbar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  function handleLogout() {
+    logout();
+    navigate('/login', { replace: true });
+  }
 
   return (
     <nav className="navbar">
@@ -36,6 +44,14 @@ export default function Navbar() {
             <span>Ke Layar Absen</span>
             <ArrowRight size={16} />
           </Link>
+          <button
+            className="navbar__link navbar__link--logout"
+            onClick={handleLogout}
+            title="Logout"
+          >
+            <LogOut size={16} />
+            <span>Logout</span>
+          </button>
         </div>
       </div>
     </nav>

@@ -1,0 +1,45 @@
+# ========================
+# Python / Backend
+# ========================
+backend/venv/
+backend/__pycache__/
+backend/app/__pycache__/
+backend/app/routers/__pycache__/
+backend/app/services/__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment variables
+backend/.env
+.env
+
+# Database (opsional — hapus baris ini kalau mau ikut commit)
+backend/*.db
+
+# InsightFace model cache
+backend/.insightface/
+
+# ========================
+# Node / Frontend
+# ========================
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+# ========================
+# OS & Editor
+# ========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from app.db import init_db, seed_shifts
 from app.routers import employees, attendance
 from app.routers.shifts import shift_router, schedule_router
+from app.routers.auth import router as auth_router
 
 # Load environment variables
 load_dotenv()
@@ -83,6 +84,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(employees.router)
 app.include_router(attendance.router)
 app.include_router(shift_router)

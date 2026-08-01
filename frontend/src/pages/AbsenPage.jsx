@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { CheckCircle2, XCircle, AlertTriangle, LogIn, LogOut, Scan } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle2, XCircle, AlertTriangle, LogIn, LogOut, Scan, AlarmClock, Settings } from 'lucide-react';
 import { loadFaceModels, detectFaces, checkFaceStability, captureFrame, drawFaceOverlay } from '../lib/faceDetection';
 import { verifyFace } from '../lib/api';
 import PinFallback from '../components/PinFallback';
@@ -18,6 +19,7 @@ import './AbsenPage.css';
  * 5. Fallback ke PIN setelah 3x gagal
  */
 export default function AbsenPage() {
+  const navigate = useNavigate();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const detectionIntervalRef = useRef(null);
@@ -189,7 +191,7 @@ export default function AbsenPage() {
 
         setMatchResult(result);
         setStatus('success');
-        setStatusMessage(`Selamat datang, ${result.employee.nama}! Absen ${result.jenis.toUpperCase()} berhasil.`);
+        setStatusMessage(`Selamat datang, ${result.employee.nama}! Absen ${(result.jenis ?? '').toUpperCase()} berhasil.`);
         failCountRef.current = 0;
 
         // Reset state after 8 seconds
@@ -259,9 +261,11 @@ export default function AbsenPage() {
       employee: result.employee,
       jenis: result.jenis,
       similarity_score: null,
+      terlambat: result.terlambat ?? false,
+      menit_terlambat: result.menit_terlambat ?? 0,
     });
     setStatus('success');
-    setStatusMessage(`Selamat datang, ${result.employee.nama}! Absen ${result.jenis.toUpperCase()} berhasil.`);
+    setStatusMessage(`Selamat datang, ${result.employee?.nama ?? 'Karyawan'}! Absen ${(result.jenis ?? '').toUpperCase()} berhasil.`);
     setShowPin(false);
 
     setTimeout(() => {
@@ -314,6 +318,14 @@ export default function AbsenPage() {
           <div className="absen-header__time">{formatTime(currentTime)}</div>
           <div className="absen-header__date">{formatDate(currentTime)}</div>
         </div>
+        <button
+          className="absen-header__admin-btn"
+          onClick={() => navigate('/login')}
+          title="Login Admin"
+        >
+          <Settings size={16} />
+          <span>Admin</span>
+        </button>
       </header>
 
       {/* Main content */}
@@ -407,11 +419,11 @@ export default function AbsenPage() {
         {status === 'success' && matchResult && (
           <div className="absen-result animate-bounce-in">
             <div className="absen-result__avatar">
-              {matchResult.employee.nama.charAt(0).toUpperCase()}
+              {(matchResult.employee?.nama ?? '?').charAt(0).toUpperCase()}
             </div>
             <div className="absen-result__info">
-              <h2 className="absen-result__name">{matchResult.employee.nama}</h2>
-              <p className="absen-result__role">{matchResult.employee.role}</p>
+              <h2 className="absen-result__name">{matchResult.employee?.nama ?? '-'}</h2>
+              <p className="absen-result__role">{matchResult.employee?.role ?? ''}</p>
             </div>
             <div className="absen-result__badge">
               <span className={`badge ${matchResult.jenis === 'masuk' ? 'badge--success' : 'badge--warning'} flex items-center gap-1.5`}>
@@ -421,6 +433,12 @@ export default function AbsenPage() {
                   <><LogOut size={14} /> <span>PULANG BERHASIL</span></>
                 )}
               </span>
+              {matchResult.jenis === 'masuk' && matchResult.terlambat && (
+                <span className="badge badge--danger flex items-center gap-1.5" style={{ marginTop: '6px' }}>
+                  <AlarmClock size={14} />
+                  <span>TERLAMBAT {matchResult.menit_terlambat} MENIT</span>
+                </span>
+              )}
             </div>
             {matchResult.similarity_score && (
               <p className="absen-result__score text-xs text-muted">

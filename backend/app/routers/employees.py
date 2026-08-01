@@ -22,6 +22,27 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/employees", tags=["employees"])
 
 
+@router.get("/generate-kode")
+def generate_kode_karyawan(db: Session = Depends(get_db)):
+    """Generate kode karyawan otomatis dengan format ALN-XXX (3 digit)."""
+    # Ambil semua kode yang sudah ada dengan format ALN-XXX
+    existing = db.query(Employee.kode_karyawan).all()
+    existing_numbers = set()
+    for (kode,) in existing:
+        if kode and kode.startswith("ALN-"):
+            suffix = kode[4:]
+            if suffix.isdigit():
+                existing_numbers.add(int(suffix))
+
+    # Cari nomor terkecil yang belum dipakai, mulai dari 1
+    next_number = 1
+    while next_number in existing_numbers:
+        next_number += 1
+
+    kode = f"ALN-{next_number:03d}"
+    return {"kode_karyawan": kode}
+
+
 @router.post("")
 def create_employee(
     nama: str = Form(...),

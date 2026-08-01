@@ -12,10 +12,11 @@ import {
   MoveLeft, 
   MoveRight, 
   MoveUp, 
-  MoveDown 
+  MoveDown,
+  RefreshCw
 } from 'lucide-react';
 import { loadFaceModels, detectFaces, checkFaceStability, captureFrame, drawFaceOverlay } from '../lib/faceDetection';
-import { addEmployee, enrollFace } from '../lib/api';
+import { addEmployee, enrollFace, generateKodeKaryawan } from '../lib/api';
 import Navbar from '../components/Navbar';
 import './EnrollPage.css';
 
@@ -71,6 +72,20 @@ export default function EnrollPage() {
       stopCamera();
     };
   }, []);
+
+  // Auto-generate kode karyawan saat halaman pertama dibuka
+  useEffect(() => {
+    fetchGeneratedKode();
+  }, []);
+
+  async function fetchGeneratedKode() {
+    try {
+      const result = await generateKodeKaryawan();
+      setFormData((prev) => ({ ...prev, kode_karyawan: result.kode_karyawan }));
+    } catch {
+      // Biarkan user isi manual jika gagal
+    }
+  }
 
   function stopCamera() {
     if (detectionLoopRef.current) {
@@ -284,15 +299,26 @@ export default function EnrollPage() {
 
               <div className="form-group">
                 <label className="form-label" htmlFor="kode">Kode Karyawan *</label>
-                <input
-                  id="kode"
-                  className="form-input"
-                  type="text"
-                  placeholder="Contoh: ALN-001"
-                  value={formData.kode_karyawan}
-                  onChange={(e) => setFormData({ ...formData, kode_karyawan: e.target.value })}
-                  required
-                />
+                <div className="kode-input-wrapper">
+                  <input
+                    id="kode"
+                    className="form-input"
+                    type="text"
+                    placeholder="Contoh: ALN-001"
+                    value={formData.kode_karyawan}
+                    onChange={(e) => setFormData({ ...formData, kode_karyawan: e.target.value })}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="kode-refresh-btn"
+                    onClick={fetchGeneratedKode}
+                    title="Generate ulang kode"
+                  >
+                    <RefreshCw size={15} />
+                  </button>
+                </div>
+                <span className="form-hint">Digenerate otomatis, bisa diubah manual jika perlu.</span>
               </div>
 
               <div className="form-group">

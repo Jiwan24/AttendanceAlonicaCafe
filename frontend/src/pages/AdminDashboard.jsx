@@ -16,6 +16,8 @@ import {
   LogIn,
   LogOut,
   CalendarClock,
+  AlarmClock,
+  CheckCircle2,
 } from 'lucide-react';
 import { getEmployees, getAttendanceLogs, getAttendanceSummary, deleteEmployee, exportAttendance, reactivateEmployee } from '../lib/api';
 import Navbar from '../components/Navbar';
@@ -262,12 +264,13 @@ export default function AdminDashboard() {
                       <th>Waktu</th>
                       <th>Metode</th>
                       <th>Skor</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {logs.length === 0 ? (
                       <tr>
-                        <td colSpan="7" className="text-center text-muted" style={{ padding: 'var(--space-8)' }}>
+                        <td colSpan="8" className="text-center text-muted" style={{ padding: 'var(--space-8)' }}>
                           Belum ada data absensi
                         </td>
                       </tr>
@@ -295,6 +298,23 @@ export default function AdminDashboard() {
                           </td>
                           <td className="text-muted">
                             {log.similarity_score ? `${(log.similarity_score * 100).toFixed(1)}%` : '-'}
+                          </td>
+                          <td>
+                            {log.jenis === 'masuk' ? (
+                              log.terlambat ? (
+                                <span className="badge badge--danger inline-flex items-center gap-1" title={`Terlambat ${log.menit_terlambat} menit`}>
+                                  <AlarmClock size={12} />
+                                  <span>Terlambat {log.menit_terlambat}m</span>
+                                </span>
+                              ) : (
+                                <span className="badge badge--success inline-flex items-center gap-1">
+                                  <CheckCircle2 size={12} />
+                                  <span>Tepat Waktu</span>
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-muted">—</span>
+                            )}
                           </td>
                         </tr>
                       ))

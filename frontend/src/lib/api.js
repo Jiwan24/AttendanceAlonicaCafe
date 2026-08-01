@@ -3,19 +3,34 @@
  * All methods return parsed JSON responses.
  */
 
+import { getToken, removeToken } from './auth';
+
 const API_BASE = 'http://localhost:8000/api';
 
 /**
  * Generic fetch wrapper with error handling.
+ * Otomatis inject Authorization header jika token tersedia.
+ * Redirect ke /login jika server kembalikan 401.
  */
 async function request(url, options = {}) {
+  const token = getToken();
+  const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+
   try {
     const response = await fetch(`${API_BASE}${url}`, {
       ...options,
       headers: {
+        ...authHeader,
         ...options.headers,
       },
     });
+
+    // Token expired atau tidak valid — paksa logout
+    if (response.status === 401) {
+      removeToken();
+      window.location.href = '/login';
+      throw new Error('Sesi habis. Silakan login kembali.');
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -37,6 +52,35 @@ async function request(url, options = {}) {
 }
 
 // ==========================================
+// AUTH API
+// ==========================================
+
+/**
+ * Login admin — tidak perlu token, jadi pakai fetch langsung.
+ */
+export async function loginAdmin(username, password) {
+  const response = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Login gagal.');
+  }
+
+  return response.json();
+}
+
+/**
+ * Verifikasi token masih valid.
+ */
+export async function verifyAuthToken() {
+  return request('/auth/verify');
+}
+
+// ==========================================
 // EMPLOYEE API
 // ==========================================
 
@@ -54,6 +98,13 @@ export async function getEmployees(status = null) {
  */
 export async function getEmployee(id) {
   return request(`/employees/${id}`);
+}
+
+/**
+ * Generate kode karyawan otomatis (format ALN-XXX).
+ */
+export async function generateKodeKaryawan() {
+  return request('/employees/generate-kode');
 }
 
 /**

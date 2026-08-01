@@ -126,3 +126,17 @@
   .navbar__subtitle { display: none; }
   .navbar__link     { padding: var(--space-2); }
 }
+
+/* Logout button */
+.navbar__link--logout {
+  background: none;
+  cursor: pointer;
+  color: var(--color-danger);
+  border-color: transparent;
+}
+
+.navbar__link--logout:hover {
+  background: rgba(220, 38, 38, 0.07);
+  border-color: rgba(220, 38, 38, 0.15);
+  color: var(--color-danger);
+}

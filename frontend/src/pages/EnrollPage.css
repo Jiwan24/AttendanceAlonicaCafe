@@ -263,3 +263,41 @@
   .enroll-steps           { flex-wrap: wrap; }
   .enroll-step__line      { width: 24px; }
 }
+
+/* Kode Karyawan auto-generate */
+.kode-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kode-input-wrapper .form-input {
+  flex: 1;
+}
+
+.kode-refresh-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border, rgba(255,255,255,0.15));
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary, #aaa);
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+
+.kode-refresh-btn:hover {
+  color: var(--primary, #7c6af7);
+  background: rgba(124, 106, 247, 0.1);
+}
+
+.form-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #aaa);
+}

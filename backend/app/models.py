@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, String, Boolean, Float, Text, DateTime, Date, ForeignKey, Enum as SAEnum
+    Column, String, Boolean, Float, Text, DateTime, Date, Integer, ForeignKey, Enum as SAEnum
 )
 from sqlalchemy.orm import relationship
 from app.db import Base
@@ -96,6 +96,8 @@ class AttendanceLog(Base):
         default="wajah",
     )
     foto_capture_url = Column(Text, nullable=True)
+    terlambat = Column(Boolean, default=False, nullable=False)       # True jika absen masuk melebihi jam_masuk shift
+    menit_terlambat = Column(Integer, default=0, nullable=False)     # Selisih menit keterlambatan (0 jika tepat waktu)
 
     # Relationship
     employee = relationship("Employee", back_populates="attendance_logs")
@@ -110,6 +112,8 @@ class AttendanceLog(Base):
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "similarity_score": self.similarity_score,
             "metode": self.metode,
+            "terlambat": self.terlambat,
+            "menit_terlambat": self.menit_terlambat,
         }
 
 
