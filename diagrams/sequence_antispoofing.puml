@@ -1,0 +1,136 @@
+@startuml Sequence_AntiSpoofing
+skinparam backgroundColor #FAFAFA
+skinparam sequenceArrowColor #4B5563
+skinparam sequenceLifeLineBorderColor #6366F1
+skinparam sequenceParticipantBackgroundColor #FFFFFF
+skinparam sequenceParticipantBorderColor #6366F1
+skinparam sequenceBoxBackgroundColor #EEF2FF
+skinparam sequenceBoxBorderColor #6366F1
+skinparam noteBorderColor #D97706
+skinparam noteBackgroundColor #FFFBEB
+skinparam defaultFontName Inter
+skinparam sequenceFontSize 12
+title Sequence Diagram — Anti-Spoofing pada Proses Absensi
+
+actor       "Karyawan"          as User
+participant "Browser\n(AbsenPage)"  as FE
+participant "face-api.js\n(Frontend)" as FaceAPI
+participant "FastAPI\n/verify-face" as API
+participant "AntiSpoofing\nService"  as Spoof
+participant "FaceEngine\n(InsightFace)" as Engine
+participant "Matcher\n(ArcFace)"    as Matcher
+database    "SQLite DB"          as DB
+
+== 1. Inisiasi Absen ==
+
+User -> FE : Klik "ABSEN MASUK"
+activate FE
+FE -> FE : setScanMode('masuk')\nscanModeRef.current = 'masuk'
+
+loop Setiap 300ms — Detection Loop
+    FE -> FaceAPI : detectFaces(videoElement)
+    activate FaceAPI
+    FaceAPI --> FE : detections[]
+    deactivate FaceAPI
+    FE -> FE : checkFaceStability(detections)\nstableCount++
+end
+
+note over FE : stableCount ≥ 5\n→ wajah stabil
+
+== 2. Capture & Kirim ke Backend ==
+
+FE -> FE : captureFrame(video)\n→ Blob JPEG
+FE -> API : POST /api/attendance/verify-face\nFormData: { file: Blob, jenis: "masuk" }
+activate API
+
+== 3. Deteksi Wajah (InsightFace) ==
+
+API -> Engine : get_single_face_embedding(image_bytes)
+activate Engine
+Engine -> Engine : Decode JPEG → RGB array\nRetinaFace detect faces
+alt Tidak ada wajah
+    Engine --> API : { success: false, error: "Tidak ada wajah" }
+    API --> FE : { matched: false, error: "..." }
+    FE -> User : ❌ "Tidak ada wajah terdeteksi"
+end
+Engine -> Engine : ArcFace generate embedding (512-d)\nAmbil bbox + det_score
+Engine --> API : { success: true, embedding, bbox, det_score }
+deactivate Engine
+
+== 4. Anti-Spoofing Check ==
+
+API -> Spoof : check_liveness(image_bytes, bbox, det_score)
+activate Spoof
+
+Spoof -> Spoof : Load image → crop region wajah\n(bbox + 10% padding)
+Spoof -> Spoof : Convert ke grayscale
+
+group Analisis 5 Metrik (paralel)
+    Spoof -> Spoof : [1] LBP Variance\n     compute_lbp_variance(face_gray)\n     → lbp_var
+    Spoof -> Spoof : [2] Laplacian Variance ★\n     compute_laplacian_variance(face_gray)\n     → laplacian_var
+    Spoof -> Spoof : [3] FFT Frequency Ratio\n     compute_frequency_ratio(face_gray)\n     → freq_ratio
+    Spoof -> Spoof : [4] Color Channel Variance\n     compute_color_uniformity(face_rgb)\n     → color_var
+    Spoof -> Spoof : [5] Brightness CoV\n     compute_brightness_uniformity(face_gray)\n     → brightness_cov
+end
+
+Spoof -> Spoof : Normalisasi semua metrik → 0..1\nlbp_score, lap_score, freq_score,\ncolor_score, bright_score
+
+alt lap_score < 0.35 (Hard Fail)
+    Spoof -> Spoof : composite = lap_score × 0.5\n(foto layar pasti blur → langsung gagal)
+else lap_score ≥ 0.35
+    Spoof -> Spoof : composite = lbp×0.15 + lap×0.55\n+ freq×0.15 + color×0.10 + bright×0.05
+end
+
+alt composite < 0.50 → SPOOF DETECTED
+    note over Spoof #FFE4E4 : Foto HP: lap_score ≈ 0.16\ncomposite ≈ 0.08–0.17\n→ is_live = False
+    Spoof --> API : { is_live: false, confidence: 0.11,\nreason: "Indikator: ketajaman gambar..." }
+    deactivate Spoof
+    API -> API : Log WARNING: SPOOF DETECTED
+    API --> FE : { success: false, matched: false,\nspoof_detected: true,\nerror: "Wajah tidak terdeteksi\nsebagai wajah asli..." }
+    deactivate API
+    FE -> User : ❌ "Wajah tidak terdeteksi sebagai\nwajah asli. Gunakan wajah langsung."
+    FE -> FE : Reset setelah 5 detik
+else composite ≥ 0.50 → LIVE
+    note over Spoof #E4FFE4 : Wajah asli: lap_score ≈ 1.00\ncomposite ≈ 0.87\n→ is_live = True
+    Spoof --> API : { is_live: true, confidence: 0.87 }
+    deactivate Spoof
+end
+
+== 5. Face Recognition (hanya jika lulus anti-spoof) ==
+
+API -> Matcher : find_best_match(embedding, employees_with_faces)
+activate Matcher
+Matcher -> Matcher : Hitung cosine similarity\nterhadap semua embedding karyawan\nPilih skor tertinggi
+alt skor < threshold (0.55)
+    Matcher --> API : { matched: false, score: 0.3 }
+    API --> FE : { matched: false, error: "Wajah tidak dikenali" }
+    FE -> FE : failCount++ → PIN fallback jika ≥3
+else skor ≥ threshold
+    Matcher --> API : { matched: true, employee, score: 0.87 }
+end
+deactivate Matcher
+
+== 6. Validasi & Simpan Log ==
+
+API -> DB : Query attendance_logs hari ini\nuntuk employee.id
+DB --> API : today_logs (has_masuk, has_pulang)
+
+alt jenis="masuk" & has_masuk=true
+    API --> FE : { already_completed: true }
+    FE -> User : ⚠️ "Sudah absen masuk hari ini"
+else Lanjut simpan
+    API -> DB : INSERT attendance_logs\n(employee_id, jenis, timestamp, similarity_score, metode="wajah")
+    DB --> API : log tersimpan
+
+    API --> FE : { success: true, matched: true,\njenis: "masuk", employee, similarity_score,\nterlambat, menit_terlambat }
+    deactivate API
+
+    == 7. Tampilkan Hasil ==
+
+    FE -> FE : setMatchResult(result)\nsetStatus('success')
+    FE -> User : ✅ "MASUK BERHASIL"\nNama Karyawan\nKecocokan: 87%
+    FE -> FE : Auto reset setelah 8 detik
+    deactivate FE
+end
+
+@enduml

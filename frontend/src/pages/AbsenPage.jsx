@@ -128,7 +128,7 @@ export default function AbsenPage() {
           // After 5 consecutive stable frames (~1.5s), capture
           if (stableCountRef.current >= 5) {
             stableCountRef.current = 0;
-            handleCapture();
+            handleCapture(scanModeRef.current);
           }
         } else {
           stableCountRef.current = 0;
@@ -169,11 +169,12 @@ export default function AbsenPage() {
     setStatusMessage(`Deteksi Wajah Aktif: Arahkan wajah Anda ke kamera untuk Absen ${mode === 'masuk' ? 'Masuk' : 'Pulang'}`);
   }
 
-  const handleCapture = useCallback(async () => {
+  const handleCapture = useCallback(async (captureMode) => {
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
 
-    const currentMode = scanModeRef.current;
+    // Pakai captureMode yang dikirim dari detection loop (bukan scanModeRef yang bisa berubah)
+    const currentMode = captureMode || scanModeRef.current;
 
     setStatus('processing');
     setStatusMessage(`Memproses Absen ${currentMode === 'masuk' ? 'Masuk' : 'Pulang'}...`);
@@ -199,15 +200,17 @@ export default function AbsenPage() {
           resetState();
         }, 8000);
       } else if (result.error) {
-        // Has error message from backend validation (e.g. belum absen masuk)
+        // Has error message from backend validation (e.g. belum absen masuk, spoof detected)
         setStatus('failed');
         setStatusMessage(result.error);
 
+        // Jika spoof terdeteksi, reset lebih cepat dan tidak increment fail count
+        const delay = result.spoof_detected ? 5000 : 4000;
         setTimeout(() => {
           isProcessingRef.current = false;
           setStatus('ready');
           setStatusMessage(`Pilih tombol ABSEN MASUK atau ABSEN PULANG di bawah untuk mulai scan`);
-        }, 4000);
+        }, delay);
       } else {
         failCountRef.current++;
         if (failCountRef.current >= 3) {

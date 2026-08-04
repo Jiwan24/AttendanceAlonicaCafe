@@ -142,6 +142,25 @@ export async function enrollFace(employeeId, imageBlob) {
 }
 
 /**
+ * Update employee details (nama, kode_karyawan, role, pin_fallback).
+ * Only include fields you want to change.
+ * @param {string} id
+ * @param {{ nama?: string, kode_karyawan?: string, role?: string, pin_fallback?: string }} data
+ */
+export async function updateEmployee(id, data) {
+  const formData = new FormData();
+  if (data.nama !== undefined) formData.append('nama', data.nama);
+  if (data.kode_karyawan !== undefined) formData.append('kode_karyawan', data.kode_karyawan);
+  if (data.role !== undefined) formData.append('role', data.role);
+  if (data.pin_fallback !== undefined) formData.append('pin_fallback', data.pin_fallback);
+
+  return request(`/employees/${id}`, {
+    method: 'PUT',
+    body: formData,
+  });
+}
+
+/**
  * Deactivate an employee (soft delete).
  */
 export async function deleteEmployee(id) {

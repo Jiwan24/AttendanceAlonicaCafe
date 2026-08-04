@@ -18,9 +18,11 @@ import {
   CalendarClock,
   AlarmClock,
   CheckCircle2,
+  Pencil,
 } from 'lucide-react';
 import { getEmployees, getAttendanceLogs, getAttendanceSummary, deleteEmployee, exportAttendance, reactivateEmployee } from '../lib/api';
 import Navbar from '../components/Navbar';
+import EditEmployeeModal from '../components/EditEmployeeModal';
 import './AdminDashboard.css';
 
 /**
@@ -41,6 +43,7 @@ export default function AdminDashboard() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [editEmployee, setEditEmployee] = useState(null); // employee being edited
 
   // Filters
   const [dateFrom, setDateFrom] = useState(() => new Date().toISOString().split('T')[0]);
@@ -369,6 +372,13 @@ export default function AdminDashboard() {
                           </td>
                           <td>
                             <div className="flex gap-2">
+                              <button
+                                className="btn btn--sm btn--outline flex items-center gap-1"
+                                onClick={() => setEditEmployee(emp)}
+                              >
+                                <Pencil size={13} />
+                                <span>Edit</span>
+                              </button>
                               {emp.status ? (
                                 <button
                                   className="btn btn--sm btn--danger flex items-center gap-1"
@@ -412,6 +422,19 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+
+      {/* Edit Employee Modal */}
+      {editEmployee && (
+        <EditEmployeeModal
+          employee={editEmployee}
+          onClose={() => setEditEmployee(null)}
+          onSaved={async () => {
+            const empRes = await getEmployees();
+            setEmployees(empRes.employees);
+            showToast('success', 'Data karyawan berhasil diperbarui');
+          }}
+        />
+      )}
     </>
   );
 }

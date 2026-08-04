@@ -133,5 +133,6 @@ def get_single_face_embedding(image_bytes: bytes) -> dict:
         "success": True,
         "embedding": face["embedding"],
         "det_score": face["det_score"],
+        "bbox": face["bbox"],
         "error": None,
     }

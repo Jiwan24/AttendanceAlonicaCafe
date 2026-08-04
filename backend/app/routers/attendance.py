@@ -21,9 +21,15 @@ from app.db import get_db
 from app.models import Employee, AttendanceLog, ScheduledShift, Shift
 from app.services.face_engine import get_single_face_embedding, is_model_loaded
 from app.services.matcher import find_best_match
+from app.services.antispoofing import check_liveness
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/attendance", tags=["attendance"])
+
+
+def _utcnow() -> datetime:
+    """Return current UTC time as a naive datetime (for SQLite compatibility)."""
+    return datetime.utcnow()
 
 
 def _get_today_attendance_status(employee_id: str, db: Session) -> dict:
@@ -36,7 +42,7 @@ def _get_today_attendance_status(employee_id: str, db: Session) -> dict:
       - next_jenis: 'masuk' | 'pulang'
       - today_logs: list of AttendanceLog dicts
     """
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = _utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     logs = (
         db.query(AttendanceLog)
         .filter(
@@ -201,6 +207,28 @@ async def verify_face(
             "similarity_score": None,
         }
 
+    # ── Anti-Spoofing / Liveness Check ──────────────────────────────
+    liveness = check_liveness(image_bytes, result["bbox"], result["det_score"])
+    if not liveness["is_live"]:
+        logger.warning(
+            f"[Antispoofing] SPOOF DETECTED — confidence={liveness['confidence']} "
+            f"reason={liveness['reason']}"
+        )
+        return {
+            "success": False,
+            "matched": False,
+            "already_completed": False,
+            "error": (
+                "Wajah tidak terdeteksi sebagai wajah asli. "
+                "Pastikan Anda hadir langsung di depan kamera, bukan menggunakan foto atau video."
+            ),
+            "employee": None,
+            "jenis": None,
+            "similarity_score": None,
+            "spoof_detected": True,
+            "liveness_score": liveness["confidence"],
+        }
+
     # Get all active employees with face embeddings
     employees = db.query(Employee).filter(Employee.status == True).all()  # noqa: E712
     employees_with_faces = [e for e in employees if e.face_embeddings]
@@ -233,10 +261,10 @@ async def verify_face(
     # Match found! Cek status absensi hari ini
     employee = match_result["employee"]
 
-    # Validasi jadwal shift — tolak jika karyawan tidak punya shift hari ini
-    # atau waktu sekarang di luar toleransi jam shift
+    # Validasi jadwal shift — hanya cek jika karyawan punya jadwal
+    # Jika tidak ada jadwal, tetap izinkan absen (tanpa info shift)
     shift_check = _check_shift_schedule(employee.id, db)
-    if not shift_check["allowed"]:
+    if shift_check["has_shift"] and not shift_check["allowed"]:
         return {
             "success": False,
             "matched": True,
@@ -251,56 +279,54 @@ async def verify_face(
     status_info = _get_today_attendance_status(employee.id, db)
 
     # If requested mode ('masuk' / 'pulang') is provided, validate against employee history today
-    if jenis in ["masuk", "pulang"]:
-        if jenis == "masuk" and status_info["has_masuk"]:
-            return {
-                "success": True,
-                "matched": True,
-                "already_completed": True,
-                "message": f"{employee.nama} sudah melakukan Absen Masuk hari ini.",
-                "employee": employee.to_dict(),
-                "jenis": "masuk",
-                "similarity_score": match_result["score"],
-                "today_logs": status_info["today_logs"],
-            }
+    if jenis not in ["masuk", "pulang"]:
+        # jenis tidak dikirim atau tidak valid — tolak agar frontend selalu eksplisit
+        return {
+            "success": False,
+            "matched": True,
+            "already_completed": False,
+            "error": "Mode absensi tidak valid. Pilih ABSEN MASUK atau ABSEN PULANG terlebih dahulu.",
+            "employee": employee.to_dict(),
+            "jenis": None,
+            "similarity_score": match_result["score"],
+        }
 
-        if jenis == "pulang" and not status_info["has_masuk"]:
-            return {
-                "success": False,
-                "matched": True,
-                "already_completed": False,
-                "error": f"{employee.nama} belum melakukan Absen Masuk hari ini. Silakan Absen Masuk terlebih dahulu.",
-                "employee": employee.to_dict(),
-                "jenis": None,
-                "similarity_score": match_result["score"],
-            }
+    if jenis == "masuk" and status_info["has_masuk"]:
+        return {
+            "success": True,
+            "matched": True,
+            "already_completed": True,
+            "message": f"{employee.nama} sudah melakukan Absen Masuk hari ini.",
+            "employee": employee.to_dict(),
+            "jenis": "masuk",
+            "similarity_score": match_result["score"],
+            "today_logs": status_info["today_logs"],
+        }
 
-        if jenis == "pulang" and status_info["has_pulang"]:
-            return {
-                "success": True,
-                "matched": True,
-                "already_completed": True,
-                "message": f"{employee.nama} sudah melakukan Absen Pulang hari ini.",
-                "employee": employee.to_dict(),
-                "jenis": "pulang",
-                "similarity_score": match_result["score"],
-                "today_logs": status_info["today_logs"],
-            }
+    if jenis == "pulang" and not status_info["has_masuk"]:
+        return {
+            "success": False,
+            "matched": True,
+            "already_completed": False,
+            "error": f"{employee.nama} belum melakukan Absen Masuk hari ini. Silakan Absen Masuk terlebih dahulu.",
+            "employee": employee.to_dict(),
+            "jenis": None,
+            "similarity_score": match_result["score"],
+        }
 
-        target_jenis = jenis
-    else:
-        if status_info["already_completed"]:
-            return {
-                "success": True,
-                "matched": True,
-                "already_completed": True,
-                "message": f"{employee.nama} sudah menyelesaikan Absen Masuk & Pulang hari ini.",
-                "employee": employee.to_dict(),
-                "jenis": None,
-                "similarity_score": match_result["score"],
-                "today_logs": status_info["today_logs"],
-            }
-        target_jenis = status_info["next_jenis"]
+    if jenis == "pulang" and status_info["has_pulang"]:
+        return {
+            "success": True,
+            "matched": True,
+            "already_completed": True,
+            "message": f"{employee.nama} sudah melakukan Absen Pulang hari ini.",
+            "employee": employee.to_dict(),
+            "jenis": "pulang",
+            "similarity_score": match_result["score"],
+            "today_logs": status_info["today_logs"],
+        }
+
+    target_jenis = jenis
 
     # Hitung keterlambatan jika absen masuk
     keterlambatan = {"terlambat": False, "menit_terlambat": 0}
@@ -377,9 +403,9 @@ def pin_fallback(
     if not bcrypt.checkpw(pin.encode("utf-8"), employee.pin_fallback.encode("utf-8")):
         raise HTTPException(status_code=401, detail="PIN salah.")
 
-    # Validasi jadwal shift — tolak jika tidak punya shift hari ini atau di luar jam shift
+    # Validasi jadwal shift — hanya cek jika karyawan punya jadwal
     shift_check = _check_shift_schedule(employee.id, db)
-    if not shift_check["allowed"]:
+    if shift_check["has_shift"] and not shift_check["allowed"]:
         raise HTTPException(status_code=403, detail=shift_check["reason"])
 
     # Cek status absensi hari ini
@@ -493,14 +519,14 @@ def get_attendance_logs(
 
     if date_from:
         try:
-            dt_from = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            dt_from = datetime.strptime(date_from, "%Y-%m-%d")  # naive UTC
             query = query.filter(AttendanceLog.timestamp >= dt_from)
         except ValueError:
             raise HTTPException(status_code=400, detail="Format date_from salah. Gunakan YYYY-MM-DD.")
 
     if date_to:
         try:
-            dt_to = datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+            dt_to = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)  # naive UTC
             query = query.filter(AttendanceLog.timestamp < dt_to)
         except ValueError:
             raise HTTPException(status_code=400, detail="Format date_to salah. Gunakan YYYY-MM-DD.")
@@ -534,14 +560,14 @@ def export_attendance_csv(
 
     if date_from:
         try:
-            dt_from = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            dt_from = datetime.strptime(date_from, "%Y-%m-%d")  # naive UTC
             query = query.filter(AttendanceLog.timestamp >= dt_from)
         except ValueError:
             raise HTTPException(status_code=400, detail="Format date_from salah.")
 
     if date_to:
         try:
-            dt_to = datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)
+            dt_to = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)  # naive UTC
             query = query.filter(AttendanceLog.timestamp < dt_to)
         except ValueError:
             raise HTTPException(status_code=400, detail="Format date_to salah.")
@@ -598,11 +624,11 @@ def get_attendance_summary(
     """
     if date:
         try:
-            target_date = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            target_date = datetime.strptime(date, "%Y-%m-%d")  # naive UTC
         except ValueError:
             raise HTTPException(status_code=400, detail="Format date salah. Gunakan YYYY-MM-DD.")
     else:
-        target_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        target_date = _utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
     next_day = target_date + timedelta(days=1)
 

@@ -24,7 +24,7 @@ def generate_uuid():
 
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.utcnow()
 
 
 class Employee(Base):
@@ -109,7 +109,7 @@ class AttendanceLog(Base):
             "employee_nama": self.employee.nama if self.employee else None,
             "employee_kode": self.employee.kode_karyawan if self.employee else None,
             "jenis": self.jenis,
-            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "timestamp": (self.timestamp.isoformat() + "Z") if self.timestamp else None,
             "similarity_score": self.similarity_score,
             "metode": self.metode,
             "terlambat": self.terlambat,

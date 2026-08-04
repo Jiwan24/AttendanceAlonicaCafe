@@ -152,6 +152,56 @@ async def enroll_face(
     }
 
 
+@router.put("/{employee_id}")
+def update_employee(
+    employee_id: str,
+    nama: str = Form(None),
+    kode_karyawan: str = Form(None),
+    role: str = Form(None),
+    pin_fallback: str = Form(None),
+    db: Session = Depends(get_db),
+):
+    """Update data karyawan (nama, kode_karyawan, role, pin_fallback)."""
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Karyawan tidak ditemukan.")
+
+    if nama is not None:
+        employee.nama = nama.strip()
+
+    if kode_karyawan is not None:
+        # Check duplicate only if changed
+        if kode_karyawan != employee.kode_karyawan:
+            existing = db.query(Employee).filter(
+                Employee.kode_karyawan == kode_karyawan,
+                Employee.id != employee_id,
+            ).first()
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Kode karyawan '{kode_karyawan}' sudah digunakan.",
+                )
+        employee.kode_karyawan = kode_karyawan.strip()
+
+    if role is not None:
+        employee.role = role
+
+    if pin_fallback is not None:
+        if pin_fallback == "":
+            # Clear the PIN
+            employee.pin_fallback = None
+        else:
+            employee.pin_fallback = bcrypt.hashpw(
+                pin_fallback.encode("utf-8"), bcrypt.gensalt()
+            ).decode("utf-8")
+
+    db.commit()
+    db.refresh(employee)
+
+    logger.info(f"Updated employee: {employee.nama} ({employee.kode_karyawan})")
+    return {"success": True, "employee": employee.to_dict()}
+
+
 @router.delete("/{employee_id}")
 def deactivate_employee(employee_id: str, db: Session = Depends(get_db)):
     """Nonaktifkan karyawan (soft delete)."""

@@ -1,0 +1,103 @@
+@startuml Activity_AntiSpoofing
+skinparam backgroundColor #FAFAFA
+skinparam activityBackgroundColor #FFFFFF
+skinparam activityBorderColor #6366F1
+skinparam activityDiamondBackgroundColor #EEF2FF
+skinparam activityDiamondBorderColor #6366F1
+skinparam arrowColor #4B5563
+skinparam activityFontSize 13
+skinparam defaultFontName Inter
+title Activity Diagram — Anti-Spoofing / Liveness Detection
+
+|Karyawan|
+start
+:Klik tombol ABSEN MASUK / PULANG;
+:Arahkan wajah ke kamera;
+:Sistem menunggu wajah stabil\n(5 frame berturut-turut);
+
+|Frontend (Browser)|
+:Capture frame dari video stream;
+:Kirim gambar + jenis absen\nke backend via POST /verify-face;
+
+|Backend — verify-face|
+:Terima image bytes + jenis;
+:Decode gambar (JPEG → RGB array);
+:Deteksi wajah menggunakan\nInsightFace RetinaFace;
+
+if (Wajah terdeteksi?) then (Tidak)
+  :Return error:\n"Tidak ada wajah terdeteksi";
+  |Frontend (Browser)|
+  :Tampilkan pesan gagal;
+  stop
+else (Ya)
+endif
+
+:Ambil bounding box wajah (bbox)\ndan detection score (det_score);
+
+|Anti-Spoofing Service|
+:Crop region wajah berdasarkan bbox\n(+ padding 10%);
+:Convert ke grayscale;
+
+fork
+  :Hitung LBP Variance\n(tekstur kulit)\n— wajah asli: 8–25\n— foto layar: 1–6;
+fork again
+  :Hitung Laplacian Variance\n(ketajaman gambar)\n— wajah asli: tinggi\n— foto layar: rendah (blur);
+fork again
+  :Hitung FFT Frequency Ratio\n(distribusi frekuensi)\n— wajah asli: 0.3–0.6\n— foto layar: anomali;
+fork again
+  :Hitung Color Variance\n(variasi warna RGB)\n— wajah asli: beragam\n— foto layar: seragam;
+fork again
+  :Hitung Brightness CoV\n(koefisien variasi kecerahan)\n— wajah asli: > 0.18\n— foto layar: < 0.10;
+end fork
+
+:Normalisasi semua metrik ke 0–1;
+
+if (Laplacian Score < 0.35?) then (Ya)
+  :Hard fail:\ncomposite = lap_score × 0.5\n(foto layar pasti blur);
+else (Tidak)
+  :Hitung weighted composite:\nlbp×0.15 + lap×0.55\n+ freq×0.15 + color×0.10 + bright×0.05;
+endif
+
+if (composite ≥ 0.50?) then (Ya — Live)
+  :Return is_live = True\nconfidence = composite;
+  |Backend — verify-face|
+  :Lanjut ke Face Recognition\n(embedding + matching);
+else (Tidak — Spoof)
+  :Return is_live = False\nreason = indikator terburuk;
+  |Backend — verify-face|
+  :Return response:\nsuccess=false\nspoof_detected=true\nerror = "Wajah tidak terdeteksi\nsebagai wajah asli";
+  |Frontend (Browser)|
+  :Tampilkan pesan:\n"Wajah tidak terdeteksi sebagai\nwajah asli. Gunakan wajah langsung.";
+  :Reset setelah 5 detik;
+  stop
+endif
+
+|Backend — verify-face|
+:Bandingkan embedding dengan\ndatabase karyawan (ArcFace);
+
+if (Wajah cocok?) then (Tidak)
+  :Return: wajah tidak dikenali;
+  |Frontend (Browser)|
+  :Increment fail counter;
+  if (≥ 3 kali gagal?) then (Ya)
+    :Tampilkan PIN Fallback;
+  else (Tidak)
+    :Coba ulang otomatis;
+  endif
+  stop
+else (Ya)
+endif
+
+|Backend — verify-face|
+:Catat log absensi ke database\n(jenis, timestamp, similarity_score, metode=wajah);
+:Return sukses + data karyawan;
+
+|Frontend (Browser)|
+:Tampilkan hasil:\n"MASUK BERHASIL" / "PULANG BERHASIL"\nNama, Role, Kecocokan %;
+:Auto reset setelah 8 detik;
+
+|Karyawan|
+:Absen selesai ✓;
+stop
+
+@enduml
