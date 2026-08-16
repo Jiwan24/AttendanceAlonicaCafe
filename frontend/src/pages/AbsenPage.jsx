@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, XCircle, AlertTriangle, LogIn, LogOut, Scan, AlarmClock, Settings } from 'lucide-react';
-import { loadFaceModels, detectFaces, checkFaceStability, captureFrame, drawFaceOverlay } from '../lib/faceDetection';
+import { CheckCircle2, XCircle, AlertTriangle, LogIn, LogOut, Scan, AlarmClock, Settings, Smile } from 'lucide-react';
+import { loadFaceModels, detectFaces, checkFaceStability, captureFrame, drawFaceOverlay, computeMotion, computeMouthAspectRatio, updateAndCheckSmile, resetMotionState } from '../lib/faceDetection';
 import { verifyFace } from '../lib/api';
 import PinFallback from '../components/PinFallback';
 import AlreadyCompletedModal from '../components/AlreadyCompletedModal';
@@ -36,6 +36,11 @@ export default function AbsenPage() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [cameraReady, setCameraReady] = useState(false);
   const [scanMode, setScanMode] = useState(null); // null | 'masuk' | 'pulang'
+
+  // Liveness: smile challenge state
+  const [livenessState, setLivenessState] = useState('idle'); // idle | challenge | passed
+  const [smileProgress, setSmileProgress] = useState(0); // 0–1
+  const livenessPassedRef = useRef(false);
 
   // Real-time clock
   useEffect(() => {
@@ -121,6 +126,31 @@ export default function AbsenPage() {
         drawFaceOverlay(canvasRef.current, detections, stability.stable);
 
         if (stability.stable) {
+          const detection = detections[0];
+          const landmarks = detection.landmarks;
+          const box = detection.detection.box;
+
+          // ── Liveness: Smile Challenge ─────────────────────────────
+          if (!livenessPassedRef.current) {
+            const mar = computeMouthAspectRatio(landmarks, box);
+            const { smileDetected, progress } = updateAndCheckSmile(mar);
+
+            setSmileProgress(progress);
+            setLivenessState('challenge');
+
+            if (smileDetected) {
+              livenessPassedRef.current = true;
+              setLivenessState('passed');
+              setSmileProgress(1);
+            } else {
+              setStatus('detecting');
+              setStatusMessage('😊 Senyum sebentar untuk verifikasi liveness...');
+              stableCountRef.current = 0; // jangan capture sebelum senyum
+              return;
+            }
+          }
+
+          // ── Liveness passed — proses capture normal ───────────────
           stableCountRef.current++;
           setStatus('detecting');
           setStatusMessage(`Wajah terdeteksi (${scanModeRef.current === 'masuk' ? 'Absen Masuk' : 'Absen Pulang'}), tetap diam...`);
@@ -161,6 +191,12 @@ export default function AbsenPage() {
       setStatusMessage('Pilih tombol ABSEN MASUK atau ABSEN PULANG di bawah untuk mulai scan');
       return;
     }
+
+    // Reset liveness state untuk scan baru
+    livenessPassedRef.current = false;
+    setLivenessState('idle');
+    setSmileProgress(0);
+    resetMotionState();
 
     setScanMode(mode);
     scanModeRef.current = mode;
@@ -250,6 +286,11 @@ export default function AbsenPage() {
     setStatus('ready');
     setStatusMessage('Pilih tombol ABSEN MASUK atau ABSEN PULANG di bawah untuk mulai scan');
     setShowPin(false);
+    // Reset liveness
+    livenessPassedRef.current = false;
+    setLivenessState('idle');
+    setSmileProgress(0);
+    resetMotionState();
   }
 
   function handlePinSuccess(result) {
@@ -396,6 +437,30 @@ export default function AbsenPage() {
             {/* Scanning animation */}
             {scanMode && (status === 'detecting' || status === 'processing') && (
               <div className="absen-scan-line" />
+            )}
+
+            {/* Smile challenge overlay */}
+            {scanMode && livenessState === 'challenge' && !livenessPassedRef.current && (
+              <div className="absen-liveness-overlay">
+                <div className="absen-liveness-prompt">
+                  <Smile size={22} className="absen-liveness-icon" />
+                  <span>Senyum untuk verifikasi</span>
+                </div>
+                <div className="absen-liveness-bar">
+                  <div
+                    className="absen-liveness-bar__fill"
+                    style={{ width: `${smileProgress * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Liveness passed indicator */}
+            {scanMode && livenessState === 'passed' && (
+              <div className="absen-liveness-passed">
+                <CheckCircle2 size={16} />
+                <span>Liveness OK</span>
+              </div>
             )}
 
             {/* Corner guides */}

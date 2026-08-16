@@ -278,6 +278,14 @@ export async function getAttendanceSummary(date = null) {
   return request(`/attendance/summary${params}`);
 }
 
+/**
+ * Delete a single attendance log by ID.
+ * @param {string} logId
+ */
+export async function deleteAttendanceLog(logId) {
+  return request(`/attendance/log/${logId}`, { method: 'DELETE' });
+}
+
 // ==========================================
 // SHIFT API
 // ==========================================

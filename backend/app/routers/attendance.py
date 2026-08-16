@@ -504,6 +504,25 @@ def pin_fallback(
     }
 
 
+@router.delete("/log/{log_id}")
+def delete_attendance_log(
+    log_id: str,
+    db: Session = Depends(get_db),
+):
+    """Hapus satu record absensi berdasarkan ID."""
+    log = db.query(AttendanceLog).filter(AttendanceLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Data absensi tidak ditemukan.")
+
+    employee_nama = log.employee.nama if log.employee else "?"
+    jenis = log.jenis
+    db.delete(log)
+    db.commit()
+
+    logger.info(f"Attendance log deleted: {employee_nama} - {jenis} (id={log_id})")
+    return {"success": True, "message": f"Absensi {jenis} {employee_nama} berhasil dihapus."}
+
+
 @router.get("/logs")
 def get_attendance_logs(
     date_from: str = Query(None, description="Format: YYYY-MM-DD"),

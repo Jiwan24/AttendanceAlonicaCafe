@@ -19,8 +19,9 @@ import {
   AlarmClock,
   CheckCircle2,
   Pencil,
+  Trash2,
 } from 'lucide-react';
-import { getEmployees, getAttendanceLogs, getAttendanceSummary, deleteEmployee, exportAttendance, reactivateEmployee } from '../lib/api';
+import { getEmployees, getAttendanceLogs, getAttendanceSummary, deleteEmployee, exportAttendance, reactivateEmployee, deleteAttendanceLog } from '../lib/api';
 import Navbar from '../components/Navbar';
 import EditEmployeeModal from '../components/EditEmployeeModal';
 import './AdminDashboard.css';
@@ -116,6 +117,24 @@ export default function AdminDashboard() {
       showToast('success', `${nama} telah diaktifkan kembali`);
       const empRes = await getEmployees();
       setEmployees(empRes.employees);
+    } catch (err) {
+      showToast('error', err.message);
+    }
+  }
+
+  async function handleDeleteLog(logId, employeeNama, jenis) {
+    if (!confirm(`Hapus data absensi "${jenis}" milik ${employeeNama}?\nTindakan ini tidak bisa dibatalkan.`)) return;
+    try {
+      await deleteAttendanceLog(logId);
+      showToast('success', `Absensi berhasil dihapus`);
+      // Refresh logs dengan filter aktif
+      const filters = { date_from: dateFrom, date_to: dateTo, limit: 100 };
+      if (filterEmployee) filters.employee_id = filterEmployee;
+      const result = await getAttendanceLogs(filters);
+      setLogs(result.logs);
+      // Refresh summary
+      const summaryRes = await getAttendanceSummary();
+      setSummary(summaryRes);
     } catch (err) {
       showToast('error', err.message);
     }
@@ -268,12 +287,13 @@ export default function AdminDashboard() {
                       <th>Metode</th>
                       <th>Skor</th>
                       <th>Status</th>
+                      <th>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
                     {logs.length === 0 ? (
                       <tr>
-                        <td colSpan="8" className="text-center text-muted" style={{ padding: 'var(--space-8)' }}>
+                        <td colSpan="9" className="text-center text-muted" style={{ padding: 'var(--space-8)' }}>
                           Belum ada data absensi
                         </td>
                       </tr>
@@ -318,6 +338,16 @@ export default function AdminDashboard() {
                             ) : (
                               <span className="text-muted">—</span>
                             )}
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn--sm btn--danger flex items-center gap-1"
+                              onClick={() => handleDeleteLog(log.id, log.employee_nama, log.jenis)}
+                              title="Hapus absensi ini"
+                            >
+                              <Trash2 size={13} />
+                              <span>Hapus</span>
+                            </button>
                           </td>
                         </tr>
                       ))
