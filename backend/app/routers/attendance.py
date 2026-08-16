@@ -665,3 +665,46 @@ def get_attendance_summary(
         "belum_hadir": belum_hadir,
         "sudah_pulang": sudah_pulang,
     }
+
+
+
+@router.delete("/logs/{log_id}")
+def delete_attendance_log(
+    log_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Hapus log absensi berdasarkan ID.
+    
+    Args:
+        log_id: ID dari attendance log yang akan dihapus
+        
+    Returns:
+        Success message
+    """
+    log = db.query(AttendanceLog).filter(AttendanceLog.id == log_id).first()
+    
+    if not log:
+        raise HTTPException(status_code=404, detail="Log absensi tidak ditemukan")
+    
+    # Get employee info for logging
+    employee_name = log.employee.nama if log.employee else "Unknown"
+    log_jenis = log.jenis
+    log_timestamp = log.timestamp
+    
+    # Delete the log
+    db.delete(log)
+    db.commit()
+    
+    logger.info(f"[DELETE] Attendance log deleted: {employee_name} - {log_jenis} at {log_timestamp}")
+    
+    return {
+        "success": True,
+        "message": "Log absensi berhasil dihapus",
+        "deleted_log": {
+            "id": log_id,
+            "employee_name": employee_name,
+            "jenis": log_jenis,
+            "timestamp": log_timestamp.isoformat() if log_timestamp else None,
+        }
+    }

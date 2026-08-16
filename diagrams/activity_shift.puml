@@ -1,0 +1,165 @@
+@startuml Activity_Sistem_Shift
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Inter
+skinparam activityFontSize 13
+skinparam activityBackgroundColor #FFFFFF
+skinparam activityBorderColor #6366F1
+skinparam activityBorderThickness 1.5
+skinparam activityDiamondBackgroundColor #EEF2FF
+skinparam activityDiamondBorderColor #6366F1
+skinparam activityDiamondFontSize 12
+skinparam arrowColor #374151
+skinparam arrowThickness 1.5
+skinparam swimlaneBorderColor #D1D5DB
+skinparam swimlaneTitleFontSize 13
+skinparam swimlaneTitleFontStyle bold
+
+title Activity Diagram — Sistem Manajemen Shift\nAlonica Cafe Attendance System
+
+|Admin|
+start
+:Buka halaman\nJadwal Shift;
+
+|Halaman Shift (Frontend)|
+:Load daftar shift\nGET /api/shifts;
+:Load jadwal karyawan\nGET /api/schedules;
+:Tampilkan kalender jadwal\n+ daftar definisi shift;
+
+|Admin|
+fork
+  :Kelola Definisi Shift;
+  |Halaman Shift (Frontend)|
+
+  if (Aksi?) then (Tambah Shift Baru)
+    :Input nama shift\njam masuk & jam pulang\nwarna;
+    :Validasi format\nHH:MM;
+    if (Format valid?) then (Tidak)
+      :Tampilkan pesan\nerror validasi;
+      stop
+    else (Ya)
+    endif
+    :POST /api/shifts\n{ nama, jam_masuk, jam_pulang, warna };
+    |Backend (FastAPI)|
+    :Simpan Shift baru\nke database;
+    :Return shift.to_dict();
+    |Halaman Shift (Frontend)|
+    :Refresh daftar shift;
+
+  else if (Edit Shift)
+    :Input perubahan\n(nama/jam/warna);
+    :PUT /api/shifts/{id};
+    |Backend (FastAPI)|
+    :Update data shift\ndi database;
+    :Return shift terbaru;
+    |Halaman Shift (Frontend)|
+    :Refresh daftar shift;
+
+  else (Hapus Shift)
+    :Konfirmasi hapus;
+    if (Konfirmasi?) then (Batal)
+      stop
+    else (Ya)
+    endif
+    :DELETE /api/shifts/{id};
+    |Backend (FastAPI)|
+    :Hapus semua ScheduledShift\nterkait shift ini;
+    :Hapus definisi Shift;
+    |Halaman Shift (Frontend)|
+    :Refresh daftar shift\ndan jadwal;
+  endif
+
+fork again
+  :Assign Jadwal Shift\nke Karyawan;
+  |Halaman Shift (Frontend)|
+  :Pilih karyawan;
+  :Pilih definisi shift;
+  :Pilih tanggal mulai\ndan tanggal selesai;
+  if (Tanggal selesai\n≥ tanggal mulai?) then (Tidak)
+    :Tampilkan error\ntanggal tidak valid;
+    stop
+  else (Ya)
+  endif
+  if (Range ≤ 365 hari?) then (Tidak)
+    :Tampilkan error\nrange terlalu besar;
+    stop
+  else (Ya)
+  endif
+  :POST /api/schedules\n{ employee_id, shift_id,\ntanggal_mulai, tanggal_selesai };
+
+  |Backend (FastAPI)|
+  :Validasi karyawan\ndan shift ada di DB;
+
+  :Loop setiap hari\ndalam range tanggal;
+
+  while (Masih ada hari?) is (Ya)
+    :Cek duplikat\n(employee + shift + tanggal);
+    if (Duplikat?) then (Ya)
+      :Skip hari ini\nskipped++;
+    else (Tidak)
+      :INSERT ScheduledShift\nbaru ke database;
+      :created++;
+    endif
+  endwhile (Tidak)
+
+  :Return { created_count, skipped_count };
+  |Halaman Shift (Frontend)|
+  :Tampilkan notifikasi\n"X jadwal dibuat";
+  :Refresh kalender jadwal;
+
+fork again
+  :Hapus Jadwal Tertentu;
+  |Halaman Shift (Frontend)|
+  :Klik hapus pada\nitem jadwal;
+  :Konfirmasi hapus;
+  if (Konfirmasi?) then (Batal)
+    stop
+  else (Ya)
+  endif
+  :DELETE /api/schedules/{id};
+  |Backend (FastAPI)|
+  :Hapus ScheduledShift\nspesifik dari database;
+  :Return success;
+  |Halaman Shift (Frontend)|
+  :Refresh kalender jadwal;
+
+end fork
+
+|Sistem Absensi (Saat Karyawan Absen)|
+
+:Karyawan scan wajah\nuntuk absen;
+:Backend cek\nScheduledShift hari ini\nuntuk employee_id;
+
+if (Ada jadwal shift\nhari ini?) then (Tidak)
+  :Absen tetap diizinkan\n(tanpa info shift);
+  :Catat log tanpa\ndata keterlambatan;
+else (Ya)
+  :Ambil jam_masuk &\njam_pulang dari Shift;
+  :Hitung window toleransi:\n30 menit sebelum jam_masuk\ns/d 2 jam setelah jam_pulang;
+  :Bandingkan waktu sekarang\nvs window toleransi;
+
+  if (Di dalam window\ntoleransi?) then (Tidak)
+    :Tolak absen:\n"Di luar jadwal shift.\nAbsen hanya diizinkan\n30 menit sebelum masuk\nhingga 2 jam setelah pulang.";
+    stop
+  else (Ya)
+  endif
+
+  if (Jenis absen = MASUK?) then (Ya)
+    :Hitung keterlambatan:\nwaktu_sekarang - jam_masuk;
+    if (Terlambat > 0 menit?) then (Ya)
+      :terlambat = True\nmenit_terlambat = selisih;
+    else (Tidak)
+      :terlambat = False\nmenit_terlambat = 0;
+    endif
+  else (Jenis = PULANG)
+    :terlambat = False (tidak dihitung);
+  endif
+
+  :Simpan AttendanceLog\ndengan data terlambat\ndan menit_terlambat;
+endif
+
+:Return hasil absensi\nke frontend;
+:Tampilkan status\nTepat Waktu / Terlambat X menit;
+
+stop
+
+@enduml

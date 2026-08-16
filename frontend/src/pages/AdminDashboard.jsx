@@ -19,8 +19,9 @@ import {
   AlarmClock,
   CheckCircle2,
   Pencil,
+  Trash2,
 } from 'lucide-react';
-import { getEmployees, getAttendanceLogs, getAttendanceSummary, deleteEmployee, exportAttendance, reactivateEmployee } from '../lib/api';
+import { getEmployees, getAttendanceLogs, getAttendanceSummary, deleteEmployee, exportAttendance, reactivateEmployee, deleteAttendanceLog } from '../lib/api';
 import Navbar from '../components/Navbar';
 import EditEmployeeModal from '../components/EditEmployeeModal';
 import './AdminDashboard.css';
@@ -118,6 +119,17 @@ export default function AdminDashboard() {
       setEmployees(empRes.employees);
     } catch (err) {
       showToast('error', err.message);
+    }
+  }
+
+  async function handleDeleteAttendanceLog(logId, employeeName, jenis) {
+    if (!confirm(`Hapus log absensi ${jenis} untuk "${employeeName}"?`)) return;
+    try {
+      await deleteAttendanceLog(logId);
+      showToast('success', 'Log absensi berhasil dihapus');
+      handleFilterLogs(); // Refresh log list
+    } catch (err) {
+      showToast('error', `Gagal menghapus: ${err.message}`);
     }
   }
 
@@ -268,12 +280,13 @@ export default function AdminDashboard() {
                       <th>Metode</th>
                       <th>Skor</th>
                       <th>Status</th>
+                      <th>Aksi</th>
                     </tr>
                   </thead>
                   <tbody>
                     {logs.length === 0 ? (
                       <tr>
-                        <td colSpan="8" className="text-center text-muted" style={{ padding: 'var(--space-8)' }}>
+                        <td colSpan="9" className="text-center text-muted" style={{ padding: 'var(--space-8)' }}>
                           Belum ada data absensi
                         </td>
                       </tr>
@@ -318,6 +331,15 @@ export default function AdminDashboard() {
                             ) : (
                               <span className="text-muted">—</span>
                             )}
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn--sm btn--danger inline-flex items-center gap-1"
+                              onClick={() => handleDeleteAttendanceLog(log.id, log.employee_nama, log.jenis)}
+                              title="Hapus log absensi"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </td>
                         </tr>
                       ))

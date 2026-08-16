@@ -360,3 +360,13 @@ export async function createSchedule(data) {
 export async function deleteSchedule(id) {
   return request(`/schedules/${id}`, { method: 'DELETE' });
 }
+
+/**
+ * Delete an attendance log by ID.
+ * @param {string} logId - ID of the attendance log to delete
+ */
+export async function deleteAttendanceLog(logId) {
+  return request(`/attendance/logs/${logId}`, {
+    method: 'DELETE',
+  });
+}
