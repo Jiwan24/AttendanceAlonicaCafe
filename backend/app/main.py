@@ -46,11 +46,9 @@ async def lifespan(app: FastAPI):
     seed_shifts()
     logger.info("Shift data seeded (Shift 1: 08:00–16:00, Shift 2: 16:00–00:00).")
 
-    # Load face recognition model
-    logger.info("Loading InsightFace model (this may take a moment on first run)...")
-    from app.services.face_engine import load_model
-    load_model()
-    logger.info("Face recognition engine ready.")
+    # Face model menggunakan lazy loading — akan dimuat saat request pertama
+    # Ini mencegah timeout saat deploy di cloud (model buffalo_l ~300MB)
+    logger.info("Face recognition engine ready (lazy loading — model loads on first request).")
 
     logger.info("=" * 60)
     logger.info("Server is ready! Endpoints available at /docs")
