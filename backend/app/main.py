@@ -74,10 +74,18 @@ app = FastAPI(
 )
 
 # CORS middleware — allow frontend to call backend
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+# FRONTEND_URL bisa berisi multiple URL dipisah koma, e.g.:
+#   "https://my-app.vercel.app,http://localhost:5173"
+_frontend_env = os.getenv("FRONTEND_URL", "http://localhost:5173")
+_allowed_origins = [url.strip() for url in _frontend_env.split(",") if url.strip()]
+# Selalu sertakan localhost untuk kemudahan development
+for _local in ["http://localhost:5173", "http://127.0.0.1:5173"]:
+    if _local not in _allowed_origins:
+        _allowed_origins.append(_local)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend_url, "http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

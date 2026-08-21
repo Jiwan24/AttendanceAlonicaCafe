@@ -12,9 +12,13 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./alonica_attendance.db")
 
+# connect_args hanya untuk SQLite — PostgreSQL tidak mendukung check_same_thread
+_is_sqlite = DATABASE_URL.startswith("sqlite")
+_connect_args = {"check_same_thread": False} if _is_sqlite else {}
+
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},  # SQLite-specific
+    connect_args=_connect_args,
     echo=False,
 )
 

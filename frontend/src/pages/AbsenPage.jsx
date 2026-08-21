@@ -199,27 +199,37 @@ export default function AbsenPage() {
         setTimeout(() => {
           resetState();
         }, 8000);
-      } else if (result.error) {
-        // Has error message from backend validation (e.g. belum absen masuk, spoof detected)
+      } else if (result.spoof_detected) {
+        // Spoof detected — jangan increment fail count, reset saja
         setStatus('failed');
-        setStatusMessage(result.error);
-
-        // Jika spoof terdeteksi, reset lebih cepat dan tidak increment fail count
-        const delay = result.spoof_detected ? 5000 : 4000;
+        setStatusMessage(result.error || 'Wajah tidak terdeteksi sebagai wajah asli.');
         setTimeout(() => {
           isProcessingRef.current = false;
           setStatus('ready');
           setStatusMessage(`Pilih tombol ABSEN MASUK atau ABSEN PULANG di bawah untuk mulai scan`);
-        }, delay);
+        }, 5000);
+      } else if (result.error && result.matched === false && result.employee) {
+        // matched=false tapi employee dikenali → error validasi (shift, sudah absen, dll)
+        setStatus('failed');
+        setStatusMessage(result.error);
+        setTimeout(() => {
+          isProcessingRef.current = false;
+          setStatus('ready');
+          setStatusMessage(`Pilih tombol ABSEN MASUK atau ABSEN PULANG di bawah untuk mulai scan`);
+        }, 4000);
       } else {
+        // Wajah tidak dikenali (matched=false, tidak ada employee) → increment fail count
         failCountRef.current++;
+        const scoreText = result.similarity_score
+          ? ` (skor: ${(result.similarity_score * 100).toFixed(1)}%)`
+          : '';
         if (failCountRef.current >= 3) {
           setStatus('failed');
-          setStatusMessage('Wajah tidak dikenali. Gunakan PIN untuk absen.');
+          setStatusMessage(`Wajah tidak dikenali${scoreText}. Gunakan PIN untuk absen.`);
           setShowPin(true);
         } else {
           setStatus('failed');
-          setStatusMessage(`Wajah tidak dikenali (${failCountRef.current}/3). Mencoba lagi...`);
+          setStatusMessage(`Wajah tidak dikenali${scoreText} (${failCountRef.current}/3). Mencoba lagi...`);
 
           // Auto-retry after 2 seconds
           setTimeout(() => {
