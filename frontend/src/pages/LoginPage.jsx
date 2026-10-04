@@ -29,7 +29,7 @@ export default function LoginPage() {
       <div className="login-card glass-card animate-fade-in-scale">
         {/* Logo */}
         <div className="login-card__logo">
-          <img src="/allo.png" alt="Alonica Cafe" className="login-card__logo-img" />
+          <img src="/alo-baru.jpg" alt="Alonica Cafe" className="login-card__logo-img" />
         </div>
 
         <div className="login-card__header">

@@ -59,12 +59,12 @@ class Employee(Base):
         self.face_embeddings_json = json.dumps(value)
 
     def add_embedding(self, embedding: list):
-        """Add a new face embedding (max 20 per employee)."""
+        """Add a new face embedding (max 30 per employee)."""
         embeddings = self.face_embeddings
         embeddings.append(embedding)
-        # Keep only the last 20 embeddings
-        if len(embeddings) > 20:
-            embeddings = embeddings[-20:]
+        # Keep only the last 30 embeddings
+        if len(embeddings) > 30:
+            embeddings = embeddings[-30:]
         self.face_embeddings = embeddings
 
     def to_dict(self):

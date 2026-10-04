@@ -20,8 +20,9 @@ import {
   CheckCircle2,
   Pencil,
   Trash2,
+  UserRoundX,
 } from 'lucide-react';
-import { getEmployees, getAttendanceLogs, getAttendanceSummary, deleteEmployee, exportAttendance, reactivateEmployee, deleteAttendanceLog } from '../lib/api';
+import { getEmployees, getAttendanceLogs, getAttendanceSummary, deleteEmployee, exportAttendance, reactivateEmployee, deleteAttendanceLog, getAbsentEmployees, permanentlyDeleteEmployee } from '../lib/api';
 import Navbar from '../components/Navbar';
 import EditEmployeeModal from '../components/EditEmployeeModal';
 import './AdminDashboard.css';
@@ -38,10 +39,11 @@ import './AdminDashboard.css';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('attendance'); // attendance | employees
+  const [activeTab, setActiveTab] = useState('attendance'); // attendance | employees | absent
   const [summary, setSummary] = useState(null);
   const [logs, setLogs] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [absentEmployees, setAbsentEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [editEmployee, setEditEmployee] = useState(null); // employee being edited
@@ -50,6 +52,7 @@ export default function AdminDashboard() {
   const [dateFrom, setDateFrom] = useState(() => new Date().toISOString().split('T')[0]);
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
   const [filterEmployee, setFilterEmployee] = useState('');
+  const [absentDate, setAbsentDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const showToast = useCallback((type, message) => {
     setToast({ type, message });
@@ -64,18 +67,29 @@ export default function AdminDashboard() {
   async function loadData() {
     setLoading(true);
     try {
-      const [summaryRes, logsRes, empRes] = await Promise.all([
+      const [summaryRes, logsRes, empRes, absentRes] = await Promise.all([
         getAttendanceSummary(),
         getAttendanceLogs({ date_from: dateFrom, date_to: dateTo, limit: 100 }),
         getEmployees(),
+        getAbsentEmployees(),
       ]);
       setSummary(summaryRes);
       setLogs(logsRes.logs);
       setEmployees(empRes.employees);
+      setAbsentEmployees(absentRes.employees);
     } catch (err) {
       showToast('error', err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleFilterAbsent() {
+    try {
+      const res = await getAbsentEmployees(absentDate);
+      setAbsentEmployees(res.employees);
+    } catch (err) {
+      showToast('error', err.message);
     }
   }
 
@@ -104,6 +118,20 @@ export default function AdminDashboard() {
     try {
       await deleteEmployee(id);
       showToast('success', `${nama} telah dinonaktifkan`);
+      const empRes = await getEmployees();
+      setEmployees(empRes.employees);
+    } catch (err) {
+      showToast('error', err.message);
+    }
+  }
+
+  async function handlePermanentDeleteEmployee(id, nama) {
+    if (!confirm(`⚠️ HAPUS PERMANEN karyawan "${nama}"?\n\nSemua data akan dihapus:\n- Log absensi\n- Jadwal shift\n- Data wajah\n\nTindakan ini TIDAK BISA dibatalkan!`)) return;
+    // Konfirmasi kedua
+    if (!confirm(`Konfirmasi sekali lagi: hapus permanen "${nama}"?`)) return;
+    try {
+      await permanentlyDeleteEmployee(id);
+      showToast('success', `${nama} telah dihapus permanen`);
       const empRes = await getEmployees();
       setEmployees(empRes.employees);
     } catch (err) {
@@ -228,6 +256,7 @@ export default function AdminDashboard() {
 
           {/* Tab: Attendance Logs */}
           {activeTab === 'attendance' && (
+            <>
             <div className="admin-section glass-card animate-fade-in">
               {/* Filters */}
               <div className="admin-filters">
@@ -356,6 +385,62 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
+
+            {/* ── Tabel Tidak Hadir (di bawah rekap absensi) ── */}
+            {absentEmployees.length > 0 && (
+              <div className="admin-section glass-card animate-fade-in" style={{ marginTop: 'var(--space-4)' }}>
+                <div className="absent-section-header">
+                  <UserRoundX size={18} className="text-rose-400" />
+                  <h3 className="absent-section-title">Karyawan Tidak Hadir Hari Ini</h3>
+                  <span className="admin-tab__badge" style={{ fontSize: '12px', padding: '2px 8px' }}>
+                    {absentEmployees.length} orang
+                  </span>
+                </div>
+                <div className="absent-info-banner">
+                  <UserRoundX size={16} />
+                  <span>
+                    Karyawan berikut memiliki jadwal shift namun belum absen masuk setelah jam toleransi berakhir
+                    (jam masuk + 2 jam).
+                  </span>
+                </div>
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>No</th>
+                        <th>Nama</th>
+                        <th>Kode</th>
+                        <th>Role</th>
+                        <th>Shift</th>
+                        <th>Jam Masuk</th>
+                        <th>Jam Pulang</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {absentEmployees.map((emp, i) => (
+                        <tr key={emp.employee_id} className="absent-row">
+                          <td>{i + 1}</td>
+                          <td className="font-semibold">{emp.employee_nama}</td>
+                          <td className="text-muted">{emp.employee_kode}</td>
+                          <td>{emp.employee_role}</td>
+                          <td>{emp.shift_nama}</td>
+                          <td>{emp.shift_jam_masuk}</td>
+                          <td>{emp.shift_jam_pulang}</td>
+                          <td>
+                            <span className="badge badge--danger inline-flex items-center gap-1">
+                              <UserRoundX size={12} />
+                              <span>Tidak Hadir</span>
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            </>
           )}
 
           {/* Tab: Employees */}
@@ -426,6 +511,14 @@ export default function AdminDashboard() {
                                   <span>Aktifkan</span>
                                 </button>
                               )}
+                              <button
+                                className="btn btn--sm btn--danger flex items-center gap-1"
+                                style={{ opacity: 0.7 }}
+                                onClick={() => handlePermanentDeleteEmployee(emp.id, emp.nama)}
+                                title="Hapus permanen beserta semua data"
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -436,6 +529,8 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {/* Tab: Tidak Hadir — dihapus, sudah dipindah ke bawah rekap absensi */}
         </div>
 
         {/* Toast */}

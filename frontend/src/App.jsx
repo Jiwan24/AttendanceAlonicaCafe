@@ -3,6 +3,7 @@ import AbsenPage from './pages/AbsenPage';
 import AdminDashboard from './pages/AdminDashboard';
 import EnrollPage from './pages/EnrollPage';
 import ShiftPage from './pages/ShiftPage';
+import ReportsPage from './pages/ReportsPage';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
@@ -26,6 +27,9 @@ function App() {
         } />
         <Route path="/admin/shifts" element={
           <ProtectedRoute><ShiftPage /></ProtectedRoute>
+        } />
+        <Route path="/admin/reports" element={
+          <ProtectedRoute><ReportsPage /></ProtectedRoute>
         } />
       </Routes>
     </Router>

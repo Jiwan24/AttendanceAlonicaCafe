@@ -19,7 +19,7 @@ import { loadFaceModels, detectFaces, checkFaceStability, captureFrame, drawFace
 import './EditEmployeeModal.css';
 
 const ROLES = ['Barista', 'Kasir', 'Waiter', 'Manager', 'Kitchen', 'Cleaning'];
-const MAX_PHOTOS = 20;
+const MAX_PHOTOS = 30;
 
 const POSE_GUIDES = [
   { label: 'Depan',  instruction: 'Hadap lurus ke kamera',       icon: User      },
@@ -171,22 +171,24 @@ export default function EditEmployeeModal({ employee, onClose, onSaved }) {
 
   // ── Upload photo ───────────────────────────────────────────
   async function handleFileUpload(e) {
-    const file = e.target.files[0];
-    if (!file || enrolling) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length || enrolling) return;
     setEnrolling(true);
-    try {
-      const result = await enrollFace(employee.id, file);
-      const photo  = { url: URL.createObjectURL(file), detScore: result.det_score };
-      setNewPhotos((prev) => [...prev, photo]);
-      setFaceCount(result.face_count);
-      setCurrentPose((p) => p + 1);
-      showFaceToast('success', `Foto ${result.face_count}/${MAX_PHOTOS} berhasil diupload!`);
-    } catch (err) {
-      showFaceToast('error', err.message);
-    } finally {
-      setEnrolling(false);
-      e.target.value = null;
+    for (const file of files) {
+      if (faceCount + 1 > MAX_PHOTOS) break;
+      try {
+        const result = await enrollFace(employee.id, file);
+        const photo  = { url: URL.createObjectURL(file), detScore: result.det_score };
+        setNewPhotos((prev) => [...prev, photo]);
+        setFaceCount(result.face_count);
+        setCurrentPose((p) => p + 1);
+        showFaceToast('success', `Foto ${result.face_count}/${MAX_PHOTOS} berhasil diupload!`);
+      } catch (err) {
+        showFaceToast('error', err.message);
+      }
     }
+    setEnrolling(false);
+    e.target.value = null;
   }
 
   // ── Clear embeddings ───────────────────────────────────────
@@ -449,6 +451,7 @@ export default function EditEmployeeModal({ employee, onClose, onSaved }) {
                         ref={fileInputRef}
                         type="file"
                         accept="image/*"
+                        multiple
                         style={{ display: 'none' }}
                         onChange={handleFileUpload}
                       />
@@ -516,6 +519,7 @@ export default function EditEmployeeModal({ employee, onClose, onSaved }) {
                         ref={fileInputRef}
                         type="file"
                         accept="image/*"
+                        multiple
                         style={{ display: 'none' }}
                         onChange={handleFileUpload}
                       />

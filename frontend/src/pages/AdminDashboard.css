@@ -101,3 +101,68 @@
   .admin-filters .form-group { min-width: auto; width: 100%; }
   .admin-header  { flex-direction: column; align-items: flex-start; }
 }
+
+/* Tab badge (jumlah tidak hadir) */
+.admin-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(239,68,68,0.2);
+  border: 1px solid rgba(239,68,68,0.35);
+  color: #f87171;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Tab active danger (Tidak Hadir) */
+.admin-tab--danger.admin-tab--active {
+  color: #f87171;
+  border-bottom-color: #f87171;
+}
+
+/* Absent info banner */
+.absent-info-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  background: rgba(239,68,68,0.06);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.absent-info-banner svg {
+  flex-shrink: 0;
+  color: #f87171;
+}
+
+/* Absent row highlight */
+tr.absent-row {
+  background: rgba(239,68,68,0.03);
+}
+
+tr.absent-row:hover {
+  background: rgba(239,68,68,0.07) !important;
+}
+
+/* Absent section header */
+.absent-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.absent-section-title {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}

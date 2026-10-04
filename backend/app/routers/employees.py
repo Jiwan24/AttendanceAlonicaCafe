@@ -107,7 +107,7 @@ async def enroll_face(
     """
     Upload foto wajah untuk registrasi.
     Deteksi wajah -> generate embedding -> simpan ke database.
-    Dapat dipanggil beberapa kali untuk menambah embedding dari sudut berbeda (max 20).
+    Dapat dipanggil beberapa kali untuk menambah embedding dari sudut berbeda (max 30).
     """
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
@@ -146,7 +146,7 @@ async def enroll_face(
 
     return {
         "success": True,
-        "message": f"Wajah berhasil didaftarkan ({new_count}/20)",
+        "message": f"Wajah berhasil didaftarkan ({new_count}/30)",
         "face_count": new_count,
         "det_score": result["det_score"],
     }
@@ -214,6 +214,42 @@ def deactivate_employee(employee_id: str, db: Session = Depends(get_db)):
 
     logger.info(f"Deactivated employee: {employee.nama} ({employee.kode_karyawan})")
     return {"success": True, "message": f"Karyawan {employee.nama} dinonaktifkan."}
+
+
+@router.delete("/{employee_id}/permanent")
+def permanently_delete_employee(employee_id: str, db: Session = Depends(get_db)):
+    """
+    Hapus karyawan secara permanen beserta semua data terkait:
+    - Log absensi
+    - Jadwal shift
+    - Data wajah (embedding)
+
+    PERINGATAN: Tindakan ini tidak dapat dibatalkan.
+    """
+    from app.models import AttendanceLog, ScheduledShift
+
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Karyawan tidak ditemukan.")
+
+    nama = employee.nama
+    kode = employee.kode_karyawan
+
+    # Hapus semua log absensi karyawan
+    db.query(AttendanceLog).filter(AttendanceLog.employee_id == employee_id).delete()
+
+    # Hapus semua jadwal shift karyawan
+    db.query(ScheduledShift).filter(ScheduledShift.employee_id == employee_id).delete()
+
+    # Hapus karyawan itu sendiri (beserta face embeddings yang tersimpan di kolom JSON)
+    db.delete(employee)
+    db.commit()
+
+    logger.warning(f"PERMANENTLY DELETED employee: {nama} ({kode})")
+    return {
+        "success": True,
+        "message": f"Karyawan {nama} ({kode}) telah dihapus permanen beserta seluruh datanya.",
+    }
 
 
 @router.put("/{employee_id}/reactivate")

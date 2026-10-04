@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, UserPlus, ArrowRight, LogOut } from 'lucide-react';
+import { LayoutDashboard, UserPlus, ArrowRight, LogOut, BarChart3 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Navbar.css';
 
@@ -21,7 +21,7 @@ export default function Navbar() {
       <div className="container navbar__container">
         <Link to="/admin" className="navbar__brand">
           <div className="navbar__logo">
-            <img src="/allo.png" alt="Alonica" className="navbar__logo-img" />
+            <img src="/alo-baru.jpg" alt="Alonica" className="navbar__logo-img" />
           </div>
         </Link>
 
@@ -39,6 +39,13 @@ export default function Navbar() {
           >
             <UserPlus size={16} />
             <span>Registrasi</span>
+          </Link>
+          <Link 
+            to="/admin/reports" 
+            className={`navbar__link ${location.pathname === '/admin/reports' ? 'navbar__link--active' : ''}`}
+          >
+            <BarChart3 size={16} />
+            <span>Laporan</span>
           </Link>
           <Link to="/" className="navbar__link navbar__link--outline">
             <span>Ke Layar Absen</span>

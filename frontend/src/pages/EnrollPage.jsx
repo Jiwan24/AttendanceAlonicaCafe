@@ -30,7 +30,7 @@ import './EnrollPage.css';
  */
 
 const ROLES = ['Barista', 'Kasir', 'Waiter', 'Manager', 'Kitchen', 'Cleaning'];
-const MAX_PHOTOS = 20;
+const MAX_PHOTOS = 30;
 const MIN_PHOTOS = 3;
 
 const POSE_GUIDES = [
@@ -210,37 +210,35 @@ export default function EnrollPage() {
   }
 
   async function handleFileUpload(e) {
-    const file = e.target.files[0];
-    if (!file || enrolling) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length || enrolling) return;
 
     setEnrolling(true);
-    try {
-      const result = await enrollFace(employeeId, file);
+    let currentPhotos = [...photos];
+    for (const file of files) {
+      if (currentPhotos.length >= MAX_PHOTOS) break;
+      try {
+        const result = await enrollFace(employeeId, file);
+        currentPhotos = [...currentPhotos, {
+          blob: file,
+          url: URL.createObjectURL(file),
+          detScore: result.det_score,
+        }];
+        setPhotos(currentPhotos);
+        setCurrentPose(currentPhotos.length);
 
-      const newPhotos = [...photos, {
-        blob: file,
-        url: URL.createObjectURL(file),
-        detScore: result.det_score,
-      }];
-      setPhotos(newPhotos);
-
-      setToast({
-        type: 'success',
-        message: `Foto ${newPhotos.length}/${MAX_PHOTOS} berhasil diupload! ${result.message}`,
-      });
-
-      if (newPhotos.length < MAX_PHOTOS) {
-        setCurrentPose(newPhotos.length);
+        setToast({
+          type: 'success',
+          message: `Foto ${currentPhotos.length}/${MAX_PHOTOS} berhasil diupload! ${result.message}`,
+        });
+        setTimeout(() => setToast(null), 2000);
+      } catch (err) {
+        setToast({ type: 'error', message: err.message });
+        setTimeout(() => setToast(null), 3000);
       }
-
-      setTimeout(() => setToast(null), 2000);
-    } catch (err) {
-      setToast({ type: 'error', message: err.message });
-      setTimeout(() => setToast(null), 3000);
-    } finally {
-      setEnrolling(false);
-      e.target.value = null; // reset file input
     }
+    setEnrolling(false);
+    e.target.value = null; // reset file input
   }
 
   function handleFinishEnrollment() {
@@ -424,6 +422,7 @@ export default function EnrollPage() {
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     style={{ display: 'none' }}
                     ref={fileInputRef}
                     onChange={handleFileUpload}
@@ -503,12 +502,12 @@ export default function EnrollPage() {
                 <strong>{formData.nama}</strong> ({formData.kode_karyawan}) telah terdaftar
                 dengan {photos.length} foto wajah.
               </p>
-              <div className="flex gap-4 justify-center" style={{ marginTop: 'var(--space-6)' }}>
-                <button className="btn btn--primary btn--lg flex items-center gap-2" onClick={() => navigate('/admin')}>
+              <div className="flex gap-3 justify-center flex-wrap" style={{ marginTop: 'var(--space-6)' }}>
+                <button className="btn btn--primary flex items-center gap-2" onClick={() => navigate('/admin')}>
                   <ArrowLeft size={16} />
                   <span>Kembali ke Dashboard</span>
                 </button>
-                <button className="btn btn--outline btn--lg flex items-center gap-2" onClick={() => {
+                <button className="btn btn--outline flex items-center gap-2" onClick={() => {
                   setStep(1);
                   setFormData({ nama: '', kode_karyawan: '', role: 'Barista', pin_fallback: '', pin_confirm: '' });
                   setPhotos([]);
